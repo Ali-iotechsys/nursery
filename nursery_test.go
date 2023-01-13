@@ -12,8 +12,8 @@ import (
 	"github.com/arunsworld/nursery"
 )
 
-func ExampleConcurrentJob() {
-	nursery.RunConcurrently(
+func TestExampleConcurrentJob1(t *testing.T) {
+	err := nursery.RunConcurrently(
 		// Job 1
 		func(context.Context, chan error) {
 			time.Sleep(time.Millisecond * 10)
@@ -25,7 +25,57 @@ func ExampleConcurrentJob() {
 			log.Println("Job 2 done...")
 		},
 	)
-	log.Println("All jobs done...")
+	if err != nil {
+		log.Printf("all jobs done with error - %s\n", err)
+	} else {
+		log.Println("all jobs done...")
+	}
+}
+
+func TestExampleConcurrentJob2(t *testing.T) {
+	err := nursery.RunConcurrently(
+		// Job 1
+		func(_ context.Context, ch chan error) {
+			time.Sleep(time.Second * 2)
+			ch <- errors.New("error1")
+			time.Sleep(time.Millisecond * 1)
+			log.Println("Job 1 done...")
+		},
+		// Job 2
+		func(_ context.Context, ch chan error) {
+			time.Sleep(time.Second * 1)
+			ch <- errors.New("error2")
+			time.Sleep(time.Millisecond * 1)
+			log.Println("Job 2 done...")
+		},
+	)
+	if err != nil {
+		log.Printf("all jobs done with error - %s\n", err)
+	} else {
+		log.Println("all jobs done...")
+	}
+}
+
+func TestExampleConcurrentJob3(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	err := nursery.RunConcurrentlyWithContext(ctx,
+		// Job 1
+		func(ctx context.Context, _ chan error) {
+			time.Sleep(time.Millisecond * 10)
+			cancel()
+			log.Println("Job 1 done...")
+		},
+		// Job 2
+		func(context.Context, chan error) {
+			time.Sleep(time.Millisecond * 5)
+			log.Println("Job 2 done...")
+		},
+	)
+	if err != nil {
+		log.Printf("all jobs done with error - %s\n", err)
+	} else {
+		log.Println("all jobs done...")
+	}
 }
 
 func TestRunConcurrently(t *testing.T) {
