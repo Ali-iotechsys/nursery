@@ -37,14 +37,14 @@ func TestExampleConcurrentJob2(t *testing.T) {
 		// Job 1
 		func(_ context.Context, ch chan error) {
 			time.Sleep(time.Second * 2)
-			ch <- errors.New("error1")
+			ch <- errors.New("error 1")
 			time.Sleep(time.Millisecond * 1)
 			log.Println("Job 1 done...")
 		},
 		// Job 2
 		func(_ context.Context, ch chan error) {
 			time.Sleep(time.Second * 1)
-			ch <- errors.New("error2")
+			ch <- errors.New("error 2")
 			time.Sleep(time.Millisecond * 1)
 			log.Println("Job 2 done...")
 		},
@@ -57,17 +57,31 @@ func TestExampleConcurrentJob2(t *testing.T) {
 }
 
 func TestExampleConcurrentJob3(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	err := nursery.RunConcurrentlyWithContext(ctx,
+	//ctx, cancel := context.WithCancel(context.Background())
+	parentCtx := context.Background()
+	err := nursery.RunConcurrentlyWithContext(parentCtx,
 		// Job 1
-		func(ctx context.Context, _ chan error) {
-			time.Sleep(time.Millisecond * 10)
-			cancel()
+		func(ctx1 context.Context, ch chan error) {
+			timer1 := time.NewTimer(10 * time.Second)
+			time.Sleep(time.Second * 1)
+			//ch <- errors.New("error 1")
+			select {
+			case <-ctx1.Done():
+				timer1.Stop()
+				return
+			case <-timer1.C:
+			}
 			log.Println("Job 1 done...")
 		},
 		// Job 2
-		func(context.Context, chan error) {
-			time.Sleep(time.Millisecond * 5)
+		func(ctx2 context.Context, _ chan error) {
+			timer2 := time.NewTimer(20 * time.Second)
+			select {
+			case <-ctx2.Done():
+				timer2.Stop()
+				return
+			case <-timer2.C:
+			}
 			log.Println("Job 2 done...")
 		},
 	)
