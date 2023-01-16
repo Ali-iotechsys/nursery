@@ -57,14 +57,13 @@ func TestExampleConcurrentJob2(t *testing.T) {
 }
 
 func TestExampleConcurrentJob3(t *testing.T) {
-	//ctx, cancel := context.WithCancel(context.Background())
 	parentCtx := context.Background()
 	err := nursery.RunConcurrentlyWithContext(parentCtx,
 		// Job 1
 		func(ctx1 context.Context, ch chan error) {
 			timer1 := time.NewTimer(10 * time.Second)
 			time.Sleep(time.Second * 1)
-			//ch <- errors.New("error 1")
+			ch <- errors.New("error 1")
 			select {
 			case <-ctx1.Done():
 				timer1.Stop()
@@ -79,6 +78,41 @@ func TestExampleConcurrentJob3(t *testing.T) {
 			select {
 			case <-ctx2.Done():
 				timer2.Stop()
+				return
+			case <-timer2.C:
+			}
+			log.Println("Job 2 done...")
+		},
+	)
+	if err != nil {
+		log.Printf("all jobs done with error - %s\n", err)
+	} else {
+		log.Println("all jobs done...")
+	}
+}
+
+func TestExampleConcurrentJob4(t *testing.T) {
+	timeout := time.Second * 5
+	err := nursery.RunConcurrentlyWithTimeout(timeout,
+		// Job 1
+		func(ctx1 context.Context, ch chan error) {
+			timer1 := time.NewTimer(10 * time.Second)
+			select {
+			case <-ctx1.Done():
+				timer1.Stop()
+				ch <- errors.New("job 1 timed out")
+				return
+			case <-timer1.C:
+			}
+			log.Println("Job 1 done...")
+		},
+		// Job 2
+		func(ctx2 context.Context, ch chan error) {
+			timer2 := time.NewTimer(20 * time.Second)
+			select {
+			case <-ctx2.Done():
+				timer2.Stop()
+				ch <- errors.New("job 2 timed out")
 				return
 			case <-timer2.C:
 			}
